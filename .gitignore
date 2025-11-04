@@ -7,3 +7,4 @@ test.py
 run_pipeline.py
 *.mp4
 *.wav
+*.env
