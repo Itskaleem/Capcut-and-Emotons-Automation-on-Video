@@ -7,16 +7,37 @@ from typing import List, Dict
 from src.config import Config
 from src.utils.logger import logger
 
-# Try to import advanced libraries
-try:
-    from sentence_transformers import SentenceTransformer
-    from transformers import pipeline
-    from sklearn.metrics.pairwise import cosine_similarity
-    import numpy as np
-    ADVANCED_MODE = Config.ENABLE_ADVANCED_EMOTIONS
-except ImportError:
-    ADVANCED_MODE = False
-    logger.warning("Advanced emotion libraries not available. Using basic mode.")
+# Check if advanced libraries are available (lazy import to avoid DLL errors)
+ADVANCED_MODE = False
+_advanced_libs_checked = False
+
+def _check_advanced_libs():
+    """Check if advanced libraries can be loaded"""
+    global ADVANCED_MODE, _advanced_libs_checked
+    if _advanced_libs_checked:
+        return ADVANCED_MODE
+    
+    _advanced_libs_checked = True
+    try:
+        # Test import without actually importing yet
+        import importlib.util
+        specs = [
+            importlib.util.find_spec("sentence_transformers"),
+            importlib.util.find_spec("transformers"),
+            importlib.util.find_spec("sklearn"),
+            importlib.util.find_spec("numpy")
+        ]
+        if all(spec is not None for spec in specs):
+            ADVANCED_MODE = Config.ENABLE_ADVANCED_EMOTIONS and Config.ENABLE_SEMANTIC_CHUNKING
+            if ADVANCED_MODE:
+                logger.info("Advanced emotion & semantic libraries available")
+        else:
+            logger.warning("Some advanced libraries missing. Using basic mode.")
+    except Exception as e:
+        logger.warning(f"Advanced libraries check failed: {e}. Using basic mode.")
+        ADVANCED_MODE = False
+    
+    return ADVANCED_MODE
 
 
 class CaptionGenerator:
@@ -42,12 +63,15 @@ class CaptionGenerator:
         
         logger.info("Generating captions with semantic chunking...", "📝")
         
+        # Check if advanced mode is available
+        use_advanced = _check_advanced_libs()
+        
         # Step 1: Group words into sentences
         sentences = self._group_words_into_sentences(asr_words)
         logger.info(f"Created {len(sentences)} sentences from word timestamps")
         
         # Step 2: Apply semantic chunking
-        if ADVANCED_MODE and Config.ENABLE_SEMANTIC_CHUNKING:
+        if use_advanced and Config.ENABLE_SEMANTIC_CHUNKING:
             semantic_chunks = self._semantic_chunking(sentences)
         else:
             semantic_chunks = [[s] for s in sentences]  # One sentence per chunk
@@ -122,6 +146,10 @@ class CaptionGenerator:
             return [[s] for s in sentences]
         
         try:
+            # Lazy import to avoid DLL errors
+            from sentence_transformers import SentenceTransformer
+            from sklearn.metrics.pairwise import cosine_similarity
+            
             logger.info("Performing semantic chunking...", "🧠")
             
             # Load embedding model if needed
@@ -169,6 +197,9 @@ class CaptionGenerator:
     def _classify_emotion_advanced(self, text: str) -> str:
         """Use transformer-based emotion classification"""
         try:
+            # Lazy import to avoid DLL errors
+            from transformers import pipeline
+            
             # Load classifier if needed
             if self.emotion_classifier is None:
                 self.emotion_classifier = pipeline(

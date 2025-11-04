@@ -94,16 +94,18 @@ class VideoRenderer:
         # Calculate dynamic icon size based on video height
         # Use percentage of height for responsive sizing
         icon_size = int(height * Config.ICON_SIZE_RATIO)
-        logger.debug(f"Icon size calculated: {icon_size}px ({Config.ICON_SIZE_RATIO*100}% of {height}px height)")
+        logger.info(f"Icon size calculated: {icon_size}px ({Config.ICON_SIZE_RATIO*100:.0f}% of {height}px height)")
         
+        icon_count = 0
         for i, cap in enumerate(captions):
             # Calculate positions
             if has_video:
                 subtitle_y = height - 120 - (i % 2) * 60
-                icon_x = Config.ICON_POSITION_X
+                # Place icons on the LEFT side of video, vertically centered with subtitle
+                icon_x = 30
             else:
                 subtitle_y = height - 100 - (i % 3) * 80
-                icon_x = Config.ICON_POSITION_X
+                icon_x = 30
             
             # Create subtitle
             sub = VideoRenderer._make_subtitle(
@@ -113,23 +115,31 @@ class VideoRenderer:
             overlays.append(sub)
             
             # Create emotion icon
-            icon_path = VideoRenderer._get_emotion_icon(cap.get("emotion"))
+            emotion = cap.get("emotion", "neutral")
+            icon_path = VideoRenderer._get_emotion_icon(emotion)
+            
             if icon_path and os.path.exists(icon_path):
                 try:
-                    icon_y = subtitle_y + 10
+                    # Position icon vertically aligned with subtitle top
+                    icon_y = subtitle_y - 10
+                    
                     icon = (ImageClip(icon_path)
                            .set_start(cap["start"])
                            .set_duration(min(3.0, cap["end"] - cap["start"]))
                            .resize(height=icon_size)
                            .set_position((icon_x, icon_y)))
                     overlays.append(icon)
+                    icon_count += 1
                     
-                    if cap.get("emotion") != "neutral":
-                        logger.debug(f"🎭 {cap['start']:.1f}s: {cap['emotion']} ({icon_size}px) - {cap['text'][:40]}...")
+                    if emotion != "neutral":
+                        logger.info(f"🎭 {cap['start']:.1f}s: {emotion.upper()} ({icon_size}px) - {cap['text'][:40]}...")
                         
                 except Exception as e:
-                    logger.warning(f"Could not load emotion icon: {e}")
+                    logger.error(f"Failed to add icon for {emotion}: {e}")
+            elif emotion != "neutral":
+                logger.warning(f"No icon found for emotion: {emotion}")
         
+        logger.info(f"Added {icon_count} emotion icons to video")
         return overlays
     
     @staticmethod

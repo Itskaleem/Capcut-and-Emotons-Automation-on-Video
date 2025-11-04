@@ -50,10 +50,17 @@ class InputHandler:
     
     @staticmethod
     def _download_youtube_video(url: str) -> Tuple[str, str, str]:
-        """Download YouTube video with audio"""
+        """Download YouTube video with audio to output folder"""
+        
+        # Ensure output directory exists
+        Config.ensure_directories()
+        
+        # Download to output folder
+        output_template = os.path.join(Config.OUTPUT_FOLDER, "%(title)s.%(ext)s")
+        
         ydl_opts = {
             "format": f"best[height<={Config.MAX_VIDEO_HEIGHT}]/best",
-            "outtmpl": "%(title)s.%(ext)s",
+            "outtmpl": output_template,
             "skip_download": False,
             "quiet": not Config.VERBOSE_LOGGING,
             "ignoreerrors": True,
@@ -64,20 +71,20 @@ class InputHandler:
                 info = ydl.extract_info(url, download=True)
                 title = info.get("title")
                 ext = info.get("ext", "mp4")
-                video_file = f"{title}.{ext}"
+                video_file = os.path.join(Config.OUTPUT_FOLDER, f"{title}.{ext}")
                 
                 # Handle special characters in filename
                 if not os.path.exists(video_file):
                     logger.warning(f"Filename mismatch, searching for downloaded file...")
-                    possible_files = glob.glob("*.mp4")
+                    possible_files = glob.glob(os.path.join(Config.OUTPUT_FOLDER, "*.mp4"))
                     if possible_files:
                         video_file = possible_files[0]
-                        title = os.path.splitext(video_file)[0]
-                        logger.success(f"Found video: {video_file}")
+                        title = os.path.splitext(os.path.basename(video_file))[0]
+                        logger.success(f"Found video: {os.path.basename(video_file)}")
                 
-                # Extract audio
+                # Extract audio to output folder
                 safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).rstrip()
-                audio_file = f"{safe_title}.mp3"
+                audio_file = os.path.join(Config.OUTPUT_FOLDER, f"{safe_title}.mp3")
                 
                 logger.info("Extracting audio for transcription...", "🎵")
                 subprocess.run([
@@ -85,19 +92,19 @@ class InputHandler:
                     "-q:a", "0", "-map", "a", audio_file
                 ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
                 
-                logger.success(f"Audio extracted: {audio_file}")
+                logger.success(f"Audio extracted: {os.path.basename(audio_file)}")
                 return video_file, audio_file, title
                 
         except Exception as e:
             logger.error(f"YouTube download failed: {e}")
-            # Try to recover partial downloads
-            mp4_files = glob.glob("*.mp4")
+            # Try to recover partial downloads in output folder
+            mp4_files = glob.glob(os.path.join(Config.OUTPUT_FOLDER, "*.mp4"))
             if mp4_files:
                 logger.warning("Found partial download, attempting to continue...")
                 video_file = mp4_files[0]
-                title = os.path.splitext(video_file)[0]
+                title = os.path.splitext(os.path.basename(video_file))[0]
                 safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).rstrip()
-                audio_file = f"{safe_title}.mp3"
+                audio_file = os.path.join(Config.OUTPUT_FOLDER, f"{safe_title}.mp3")
                 
                 try:
                     subprocess.run([
@@ -111,10 +118,16 @@ class InputHandler:
     
     @staticmethod
     def _download_youtube_audio(url: str) -> Tuple[None, str, str]:
-        """Download only YouTube audio"""
+        """Download only YouTube audio to output folder"""
+        
+        # Ensure output directory exists
+        Config.ensure_directories()
+        
+        output_template = os.path.join(Config.OUTPUT_FOLDER, "%(title)s.%(ext)s")
+        
         ydl_opts = {
             "format": "bestaudio/best",
-            "outtmpl": "%(title)s.%(ext)s",
+            "outtmpl": output_template,
             "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3"}],
             "quiet": not Config.VERBOSE_LOGGING,
         }
@@ -122,9 +135,9 @@ class InputHandler:
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             title = info.get("title")
-            audio_file = f"{title}.mp3"
+            audio_file = os.path.join(Config.OUTPUT_FOLDER, f"{title}.mp3")
             
-            logger.success(f"Audio downloaded: {audio_file}")
+            logger.success(f"Audio downloaded: {os.path.basename(audio_file)}")
             return None, audio_file, title
     
     @staticmethod
