@@ -1,0 +1,16 @@
+# Core Dependencies
+yt-dlp>=2024.10.22
+vosk>=0.3.45
+python-dotenv>=1.0.0
+moviepy>=2.0.0.dev2
+Pillow>=11.0.0
+numpy>=1.24.0
+
+# Optional: Advanced Emotion & Semantic Analysis
+sentence-transformers>=2.2.0
+transformers>=4.30.0
+torch>=2.0.0
+scikit-learn>=1.3.0
+
+# Audio/Video Processing
+imageio-ffmpeg>=0.6.0

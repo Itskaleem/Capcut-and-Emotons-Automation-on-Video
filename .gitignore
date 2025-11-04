@@ -1,0 +1,8 @@
+test
+models
+capcut_projects
+render_visuals.py
+test.py
+run_pipeline.py
+*.mp4
+*.wav
